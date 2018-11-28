@@ -21,7 +21,7 @@ public:
 	static constexpr int CONV_KERNEL_SIZE = 3;
 
 	using RawObsTraits = NdArrayTraits<float, 8, MAX_NUMBER + 1, BOARD_SIZE * BOARD_SIZE>;
-	using ConvObsTraits = NdArrayTraits<float, 8, CONV_KERNEL_SIZE + 3, MAX_NUMBER - CONV_KERNEL_SIZE + 1, BOARD_SIZE * BOARD_SIZE>;
+	using ConvObsTraits = NdArrayTraits<float, 8, MAX_NUMBER - CONV_KERNEL_SIZE + 1, CONV_KERNEL_SIZE + 3, BOARD_SIZE * BOARD_SIZE>;
 
 	using Observation = StaticTensor<std::uint8_t, BOARD_SIZE, BOARD_SIZE>;
 	using ObsBatch = std::tuple<RawObsTraits::BufferType, ConvObsTraits::BufferType>;

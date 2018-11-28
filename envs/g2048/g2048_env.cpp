@@ -128,6 +128,27 @@ void writeRawDataHelper(const G2048Env::Observation& obs, G2048Env::RawObsTraits
 	}
 }
 
+template <int DIR>
+void writeConvDataHelper(const G2048Env::Observation& obs, G2048Env::ConvObsTraits::TensorRefType& dest)
+{
+	if constexpr (DIR < 8) {
+		for (auto n : ranges::view::indices(G2048Env::MAX_NUMBER - G2048Env::CONV_KERNEL_SIZE + 1)) {
+			for (auto y : ranges::view::indices(G2048Env::BOARD_SIZE)) {
+				for (auto x : ranges::view::indices(G2048Env::BOARD_SIZE)) {
+					auto number = get<DIR>(obs, x, y);
+					for (auto n2 : ranges::view::indices(G2048Env::CONV_KERNEL_SIZE)) {
+						dest[DIR][n][n2][y * G2048Env::BOARD_SIZE + x] = (n + 1 + n2 == number ? 1.0f : 0.0f);
+					}
+					dest[DIR][n][G2048Env::CONV_KERNEL_SIZE + 0][y * G2048Env::BOARD_SIZE + x] = (number == 0 ? 1.0f : 0.0f);
+					dest[DIR][n][G2048Env::CONV_KERNEL_SIZE + 1][y * G2048Env::BOARD_SIZE + x] = ((number < n + 1 && number != 0) ? 1.0f : 0.0f);
+					dest[DIR][n][G2048Env::CONV_KERNEL_SIZE + 2][y * G2048Env::BOARD_SIZE + x] = (number >= n + 1 + G2048Env::CONV_KERNEL_SIZE ? 1.0f : 0.0f);
+				}
+			}
+		}
+		writeConvDataHelper<DIR + 1>(obs, dest);
+	}
+}
+
 }  // namespace
 
 std::tuple<G2048Env::Observation, G2048Env::Reward, EnvState> G2048Env::step(const Action& action)
@@ -158,6 +179,7 @@ void G2048Env::writeRawData(const Observation& obs, RawObsTraits::TensorRefType&
 }
 void G2048Env::writeConvData(const Observation& obs, ConvObsTraits::TensorRefType& dest)
 {
+	writeConvDataHelper<0>(obs, dest);
 }
 
 int G2048Env::countEmpty() const
