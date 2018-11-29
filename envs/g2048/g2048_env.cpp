@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 
 #include <range/v3/view/indices.hpp>
 
@@ -164,7 +165,8 @@ std::tuple<G2048Env::Observation, G2048Env::Reward, EnvState> G2048Env::step(con
 		moveLeft<1>(m_state);
 	}
 	if (m_state == prev_state) {
-		return std::make_tuple(m_state, -11.0f, EnvState::RUNNING);
+		std::cerr << "2048 warning: Agent output an invalid action!!" << std::endl;
+		return std::make_tuple(m_state, 0.0f, EnvState::RUNNING);
 	}
 	randomGen();
 	if (isGameOver()) {
@@ -180,6 +182,22 @@ void G2048Env::writeRawData(const Observation& obs, RawObsTraits::TensorRefType&
 void G2048Env::writeConvData(const Observation& obs, ConvObsTraits::TensorRefType& dest)
 {
 	writeConvDataHelper<0>(obs, dest);
+}
+
+void G2048Env::writeInvalidMaskData(const Observation& obs, InvalidMaskTraits::TensorRefType& dest)
+{
+	auto temp = obs;
+	moveLeft<3>(temp);
+	dest[0] = (temp == obs ? 1 : 0);
+	temp = obs;
+	moveLeft<1>(temp);
+	dest[1] = (temp == obs ? 1 : 0);
+	temp = obs;
+	moveLeft<0>(temp);
+	dest[2] = (temp == obs ? 1 : 0);
+	temp = obs;
+	moveLeft<2>(temp);
+	dest[3] = (temp == obs ? 1 : 0);
 }
 
 int G2048Env::countEmpty() const

@@ -36,7 +36,7 @@ class G2048A3CModel(Model):
         h1 = F.leaky_relu(self.l_5(h1))
         h2 = h2.reshape(-1, 8, 768)
         h2 = F.leaky_relu(self.l_6(h2))
-        return torch.cat((h0, h1, h2), dim=2)
+        return torch.cat((h0, h1, h2), dim=2), observation[2].reshape(-1, 4)
 
     def logits_from_hidden(self, hidden):
         if self.rot_matrix is None:
@@ -55,17 +55,17 @@ class G2048A3CModel(Model):
         return torch.sum(pi, dim=1).reshape(-1, 4)
 
     def probs_from_hidden(self, hidden):
-        logits = self.logits_from_hidden(hidden)
-        return torch.softmax(logits, dim=1)
+        logits = self.logits_from_hidden(hidden[0])
+        return functions.masked_softmax(logits, hidden[1], dim=1)
 
     def log_probs_from_hidden(self, hidden):
-        logits = self.logits_from_hidden(hidden)
-        return torch.log_softmax(logits, dim=1)
+        logits = self.logits_from_hidden(hidden[0])
+        return functions.masked_log_softmax(logits, hidden[1], dim=1)
 
     def probs_and_log_probs_from_hidden(self, hidden):
-        logits = self.logits_from_hidden(hidden)
-        return functions.softmax_and_log_softmax(logits, dim=1)
+        logits = self.logits_from_hidden(hidden[0])
+        return functions.masked_softmax_and_log_softmax(logits, hidden[1], dim=1)
 
     def v_from_hidden(self, hidden):
-        v = self.l_v(hidden)
+        v = self.l_v(hidden[0])
         return torch.sum(v, dim=1)

@@ -59,7 +59,8 @@ struct G2048AgentTraits : impala::FloatRewardTraits, impala::A3CLossTraits
 	{
 		return boost::python::make_tuple(
 		    impala::G2048Env::RawObsTraits::convertToBatchedNdArray(std::get<0>(batch), batch_sizes...),
-		    impala::G2048Env::ConvObsTraits::convertToBatchedNdArray(std::get<1>(batch), batch_sizes...));
+		    impala::G2048Env::ConvObsTraits::convertToBatchedNdArray(std::get<1>(batch), batch_sizes...),
+		    impala::G2048Env::InvalidMaskTraits::convertToBatchedNdArray(std::get<2>(batch), batch_sizes...));
 	}
 };
 

@@ -22,9 +22,10 @@ public:
 
 	using RawObsTraits = NdArrayTraits<float, 8, MAX_NUMBER + 1, BOARD_SIZE * BOARD_SIZE>;
 	using ConvObsTraits = NdArrayTraits<float, 8, MAX_NUMBER - CONV_KERNEL_SIZE + 1, CONV_KERNEL_SIZE + 3, BOARD_SIZE * BOARD_SIZE>;
+	using InvalidMaskTraits = NdArrayTraits<std::uint8_t, 4>;
 
 	using Observation = StaticTensor<std::uint8_t, BOARD_SIZE, BOARD_SIZE>;
-	using ObsBatch = std::tuple<RawObsTraits::BufferType, ConvObsTraits::BufferType>;
+	using ObsBatch = std::tuple<RawObsTraits::BufferType, ConvObsTraits::BufferType, InvalidMaskTraits::BufferType>;
 	using Reward = float;
 	using Action = FourDirections;
 
@@ -45,11 +46,13 @@ public:
 	{
 		RawObsTraits::makeBufferForBatch(first, last, std::get<0>(output), writeRawData);
 		ConvObsTraits::makeBufferForBatch(first, last, std::get<1>(output), writeConvData);
+		InvalidMaskTraits::makeBufferForBatch(first, last, std::get<2>(output), writeInvalidMaskData);
 	}
 
 private:
 	static void writeRawData(const Observation& obs, RawObsTraits::TensorRefType& dest);
 	static void writeConvData(const Observation& obs, ConvObsTraits::TensorRefType& dest);
+	static void writeInvalidMaskData(const Observation& obs, InvalidMaskTraits::TensorRefType& dest);
 
 	int countEmpty() const;
 	std::uint8_t maxNumber() const;
