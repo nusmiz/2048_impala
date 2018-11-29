@@ -10,12 +10,14 @@ class SoftMaxAndLogSoftMax(torch.autograd.Function):
         sum = exp.sum(dim=dim, keepdim=True)
         softmax = exp / sum
         log_softmax = input_minus_max - torch.log(sum)
-        ctx.save_for_backward(softmax, dim)
+        ctx.dim = dim
+        ctx.save_for_backward(softmax)
         return softmax, log_softmax
 
     @staticmethod
     def backward(ctx, grad_softmax, grad_log_softmax):
-        softmax, dim = ctx.saved_tensors
+        dim = ctx.dim
+        softmax, = ctx.saved_tensors
         gx = softmax * grad_softmax
         gx -= softmax * gx.sum(dim=dim, keepdim=True)
         gx += grad_log_softmax - softmax * grad_log_softmax.sum(dim=dim, keepdim=True)
@@ -26,7 +28,7 @@ def softmax_and_log_softmax(input, dim):
     return SoftMaxAndLogSoftMax.apply(input, dim)
 
 
-_very_large_value = 1e-34
+_very_large_value = 1e34
 
 
 class MaskedSoftMax(torch.autograd.Function):
@@ -40,12 +42,14 @@ class MaskedSoftMax(torch.autograd.Function):
         exp[invalid_target_mask] = 0
         sum = exp.sum(dim=dim, keepdim=True)
         softmax = exp / sum
-        ctx.save_for_backward(softmax, dim)
+        ctx.dim = dim
+        ctx.save_for_backward(softmax)
         return softmax
 
     @staticmethod
     def backward(ctx, grad_softmax):
-        softmax, dim = ctx.saved_tensors
+        dim = ctx.dim
+        softmax, = ctx.saved_tensors
         gx = softmax * grad_softmax
         gx -= softmax * gx.sum(dim=dim, keepdim=True)
         return gx, None, None
@@ -67,12 +71,14 @@ class MaskedLogSoftMax(torch.autograd.Function):
         sum = exp.sum(dim=dim, keepdim=True)
         softmax = exp / sum
         log_softmax = masked_input - torch.log(sum)
-        ctx.save_for_backward(softmax, dim)
+        ctx.dim = dim
+        ctx.save_for_backward(softmax)
         return log_softmax
 
     @staticmethod
     def backward(ctx, grad_log_softmax):
-        softmax, dim = ctx.saved_tensors
+        dim = ctx.dim
+        softmax, = ctx.saved_tensors
         gx = grad_log_softmax - softmax * grad_log_softmax.sum(dim=dim, keepdim=True)
         return gx, None, None
 
@@ -93,12 +99,14 @@ class MaskedSoftMaxAndLogSoftMax(torch.autograd.Function):
         sum = exp.sum(dim=dim, keepdim=True)
         softmax = exp / sum
         log_softmax = masked_input - torch.log(sum)
-        ctx.save_for_backward(softmax, dim)
+        ctx.dim = dim
+        ctx.save_for_backward(softmax)
         return softmax, log_softmax
 
     @staticmethod
     def backward(ctx, grad_softmax, grad_log_softmax):
-        softmax, dim = ctx.saved_tensors
+        dim = ctx.dim
+        softmax, = ctx.saved_tensors
         gx = softmax * grad_softmax
         gx -= softmax * gx.sum(dim=dim, keepdim=True)
         gx += grad_log_softmax - softmax * grad_log_softmax.sum(dim=dim, keepdim=True)
