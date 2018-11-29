@@ -28,7 +28,21 @@ class Model(nn.Module):
         raise NotImplementedError()
 
     def convert_obs_to_tensor(self, observation, device):
-        return torch.from_numpy(observation).to(device=device, non_blocking=True)
+        if isinstance(observation, np.ndarray):
+            return torch.from_numpy(observation).to(device=device, non_blocking=True)
+        if isinstance(observation, torch.Tensor):
+            return observation.to(device=device, non_blocking=True)
+        if isinstance(observation, tuple):
+            return tuple(self.convert_obs_to_tensor(obs, device) for obs in observation)
+        if isinstance(observation, list):
+            return [self.convert_obs_to_tensor(obs, device) for obs in observation]
+        return observation
 
     def slice_hidden(self, hidden, length):
-        return hidden[:length]
+        if isinstance(hidden, torch.Tensor):
+            return hidden[:length]
+        if isinstance(hidden, tuple):
+            return tuple(self.slice_hidden(h, length) for h in hidden)
+        if isinstance(hidden, list):
+            return [self.slice_hidden(h, length) for h in hidden]
+        raise NotImplementedError()

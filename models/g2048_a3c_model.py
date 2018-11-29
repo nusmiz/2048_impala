@@ -56,7 +56,3 @@ class G2048A3CModel(Model):
     def v_from_hidden(self, hidden):
         v = self.l_v(hidden)
         return torch.sum(v, dim=1)
-
-    def convert_obs_to_tensor(self, observation, device):
-        return (torch.from_numpy(observation[0]).to(device=device, non_blocking=True),
-                torch.from_numpy(observation[1]).to(device=device, non_blocking=True))
