@@ -150,5 +150,5 @@ class Impala:
 
     def load_model(self, index):
         model_dir = Path(f"output/{index}").resolve()
-        self.model.load_state_dict(torch.load(model_dir / "model.pth"))
-        self.optimizer.load_state_dict(torch.load(model_dir / "optimizer.pth"))
+        self.model.load_state_dict(torch.load(model_dir / "model.pth", map_location="cpu"))
+        self.optimizer.load_state_dict(torch.load(model_dir / "optimizer.pth", map_location="cpu"))
