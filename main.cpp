@@ -26,7 +26,7 @@ struct G2048TrainParams
 	static inline constexpr std::size_t MIN_TRAINING_BATCH_SIZE = 256;
 	static inline constexpr std::size_t MAX_TRAINING_BATCH_SIZE = 256;
 
-	static inline constexpr std::size_t T_MAX = 10;
+	static inline constexpr std::size_t T_MAX = 12;
 	static inline constexpr std::optional<std::size_t> MAX_EPISODE_LENGTH = std::nullopt;
 	static inline constexpr float DISCOUNT = 0.99f;
 
@@ -47,7 +47,7 @@ struct G2048AgentTraits : impala::FloatRewardTraits, impala::A3CLossTraits
 		boost::python::exec("from agents import Impala", main_ns);
 		boost::python::exec("import torch.optim as optim", main_ns);
 		boost::python::exec("def make_optimizer(parameters):\n"
-		                    "    return optim.RMSprop(parameters, lr=0.005, alpha=0.95, eps=0.1)\n",
+		                    "    return optim.RMSprop(parameters, lr=0.002, alpha=0.95, eps=0.1)\n",
 		    main_ns);
 		auto model = main_ns["G2048A3CModel"]();
 		auto optimizer_maker = boost::python::eval("make_optimizer", main_ns);
