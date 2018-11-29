@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 
 
 class Model(nn.Module):
@@ -11,17 +12,31 @@ class Model(nn.Module):
 
     def forward(self, observation):
         hidden = self.convert_obs_to_hidden(observation)
-        return self.pi_from_hidden(hidden), self.v_from_hidden(hidden)
+        return self.probs_and_log_probs_from_hidden(hidden), self.v_from_hidden(hidden)
 
-    def pi(self, observation):
+    def probs(self, observation):
         hidden = self.convert_obs_to_hidden(observation)
-        return self.pi_from_hidden(hidden)
+        return self.probs_from_hidden(hidden)
+
+    def log_probs(self, observation):
+        hidden = self.convert_obs_to_hidden(observation)
+        return self.log_probs_from_hidden(hidden)
+
+    def probs_and_log_probs(self, observation):
+        hidden = self.convert_obs_to_hidden(observation)
+        return self.probs_and_log_probs_from_hidden(hidden)
 
     def v(self, observation):
         hidden = self.convert_obs_to_hidden(observation)
         return self.v_from_hidden(hidden)
 
-    def pi_from_hidden(self, hidden):
+    def probs_from_hidden(self, hidden):
+        raise NotImplementedError()
+
+    def log_probs_from_hidden(self, hidden):
+        raise NotImplementedError()
+
+    def probs_and_log_probs_from_hidden(self, hidden):
         raise NotImplementedError()
 
     def v_from_hidden(self, hidden):

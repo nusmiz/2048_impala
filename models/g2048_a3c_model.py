@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .model import Model
+import functions
 
 
 class G2048A3CModel(Model):
@@ -37,7 +38,7 @@ class G2048A3CModel(Model):
         h2 = F.leaky_relu(self.l_6(h2))
         return torch.cat((h0, h1, h2), dim=2)
 
-    def pi_from_hidden(self, hidden):
+    def logits_from_hidden(self, hidden):
         if self.rot_matrix is None:
             self.rot_matrix = torch.Tensor([
                 [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
@@ -52,6 +53,18 @@ class G2048A3CModel(Model):
         pi = self.l_pi(hidden)
         pi = torch.matmul(self.rot_matrix, pi.reshape(-1, 8, 4, 1))
         return torch.sum(pi, dim=1).reshape(-1, 4)
+
+    def probs_from_hidden(self, hidden):
+        logits = self.logits_from_hidden(hidden)
+        return torch.softmax(logits, dim=1)
+
+    def log_probs_from_hidden(self, hidden):
+        logits = self.logits_from_hidden(hidden)
+        return torch.log_softmax(logits, dim=1)
+
+    def probs_and_log_probs_from_hidden(self, hidden):
+        logits = self.logits_from_hidden(hidden)
+        return functions.softmax_and_log_softmax(logits, dim=1)
 
     def v_from_hidden(self, hidden):
         v = self.l_v(hidden)

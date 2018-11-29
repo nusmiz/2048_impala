@@ -17,7 +17,6 @@ class Impala:
         self.model = model.to(self.device)
         self.optimizer = optimizer_maker(self.model.parameters())
 
-        self.log_epsilon = torch.Tensor([math.log(1e-12)]).to(self.device)
         self.clip_rho_threshold = torch.Tensor([1.0]).to(self.device)
         self.clip_c_threshold = torch.Tensor([1.0]).to(self.device)
         self.prev_operation = None
@@ -25,8 +24,7 @@ class Impala:
     def predict_impl(self, observations, action_ids_out, policies_out):
         self.model.eval()
         with torch.no_grad():
-            pi = self.model.pi(observations)
-            probs = F.softmax(pi, dim=1)
+            probs = self.model.probs(observations)
             actions = probs.multinomial(1)
             policies = probs.gather(1, actions)
             torch.from_numpy(action_ids_out).copy_(actions)
@@ -55,9 +53,9 @@ class Impala:
 
         return vs.detach(), pg_advantages.detach()
 
-    def calc_loss(self, pis, probs, values, actions, vs, pg_advantages, loss_coefs, data_size):
+    def calc_loss(self, log_probs, probs, values, actions, vs, pg_advantages, loss_coefs,
+                  data_size):
         v_loss = 0.5 * ((values - vs).pow(2) * loss_coefs).sum() / data_size
-        log_probs = torch.max(F.log_softmax(pis, dim=2), self.log_epsilon)
         pi_loss = -((log_probs.gather(2, actions) * pg_advantages) * loss_coefs).sum() / data_size
         entropy_loss = ((log_probs * probs).sum(2, keepdim=True) * loss_coefs).sum() / data_size
         return v_loss, pi_loss, entropy_loss
@@ -70,16 +68,17 @@ class Impala:
 
         self.optimizer.zero_grad()
         hidden = self.model.convert_obs_to_hidden(observations)
-        pis = self.model.pi_from_hidden(self.model.slice_hidden(hidden, t_max * batch_size))
-        pis = pis.reshape(t_max, batch_size, -1)
-        probs = F.softmax(pis, dim=2)
+        probs, log_probs = self.model.probs_and_log_probs_from_hidden(
+            self.model.slice_hidden(hidden, t_max * batch_size))
+        probs = probs.reshape(t_max, batch_size, -1)
+        log_probs = log_probs.reshape(t_max, batch_size, -1)
         values = self.model.v_from_hidden(hidden)
         values = values.reshape(t_max + 1, batch_size, 1)
         with torch.no_grad():
             vs, pg_advantages = self.calc_vs_and_pg_advantages(
                 probs.detach(), values.detach(), actions, rewards, behaviour_policies, discounts)
         v_loss, pi_loss, entropy_loss = self.calc_loss(
-            pis, probs, values[:t_max], actions, vs, pg_advantages, loss_coefs, data_size)
+            log_probs, probs, values[:t_max], actions, vs, pg_advantages, loss_coefs, data_size)
         loss = (0.5 * v_loss + pi_loss + 1e-3 * entropy_loss)
         loss.backward()
         self.optimizer.step()
