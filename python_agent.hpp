@@ -173,4 +173,29 @@ private:
 	std::function<void(boost::python::object&&)> m_callback;
 };
 
+struct A3CLossTraits
+{
+	using Loss = A3CLoss;
+
+	static Loss convertToLoss(boost::python::object&& loss_obj)
+	{
+		Loss loss;
+		loss.v_loss = boost::python::extract<double>(loss_obj[0]);
+		loss.pi_loss = boost::python::extract<double>(loss_obj[1]);
+		loss.entropy_loss = boost::python::extract<double>(loss_obj[2]);
+		return loss;
+	}
+};
+
+struct FloatRewardTraits
+{
+	using Reward = float;
+
+	template <class... SizeT, std::enable_if_t<std::conjunction_v<std::is_convertible<SizeT, std::size_t>...>, std::nullptr_t> = nullptr>
+	static boost::python::object convertRewardBatch(ranges::span<Reward> rewards, SizeT... batch_sizes)
+	{
+		return impala::NdArrayTraits<Reward, 1>::convertToBatchedNdArray(rewards, batch_sizes...);
+	}
+};
+
 }  // namespace impala

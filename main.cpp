@@ -35,7 +35,7 @@ struct G2048TrainParams
 	static inline constexpr std::optional<std::size_t> SAVE_INTERVAL_STEPS = 10000000;
 };
 
-struct G2048AgentTraits
+struct G2048AgentTraits : impala::FloatRewardTraits, impala::A3CLossTraits
 {
 	using Loss = impala::A3CLoss;
 	using ObsBatch = impala::G2048Env::ObsBatch;
@@ -60,21 +60,6 @@ struct G2048AgentTraits
 		return boost::python::make_tuple(
 		    impala::G2048Env::RawObsTraits::convertToBatchedNdArray(std::get<0>(batch), batch_sizes...),
 		    impala::G2048Env::ConvObsTraits::convertToBatchedNdArray(std::get<1>(batch), batch_sizes...));
-	}
-
-	template <class... SizeT, std::enable_if_t<std::conjunction_v<std::is_convertible<SizeT, std::size_t>...>, std::nullptr_t> = nullptr>
-	static boost::python::object convertRewardBatch(ranges::span<Reward> rewards, SizeT... batch_sizes)
-	{
-		return impala::NdArrayTraits<Reward, 1>::convertToBatchedNdArray(rewards, batch_sizes...);
-	}
-
-	static Loss convertToLoss(boost::python::object&& loss_obj)
-	{
-		Loss loss;
-		loss.v_loss = boost::python::extract<double>(loss_obj[0]);
-		loss.pi_loss = boost::python::extract<double>(loss_obj[1]);
-		loss.entropy_loss = boost::python::extract<double>(loss_obj[2]);
-		return loss;
 	}
 };
 
