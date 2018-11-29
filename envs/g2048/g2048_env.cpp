@@ -254,7 +254,7 @@ void G2048Env::randomGen()
 class G2048Env::RenderData
 {
 public:
-	RenderData() : m_window(800, 600, "2048")
+	RenderData() : m_window(600, 600, "2048")
 	{
 		m_window.setToCurrentContext();
 		m_board_texture = viewer::loadPng("./envs/g2048/image/board.png");
@@ -268,7 +268,7 @@ public:
 		m_window.setToCurrentContext();
 		disableDepthTest();
 		clearScreen();
-		setOrthoProj(0, 0, 800, 600);
+		setOrthoProj(0, 0, 600, 600);
 		::glMatrixMode(GL_MODELVIEW);
 		::glLoadIdentity();
 		m_board_texture.draw(0, 0);
@@ -276,7 +276,7 @@ public:
 			for (auto x : ranges::view::indices(BOARD_SIZE)) {
 				auto n = state[y][x];
 				if (n != 0) {
-					m_number_textures.at(n - 1).draw(159 + static_cast<float>(x) * 121, 60 + static_cast<float>(y) * 121, 107, 107);
+					m_number_textures.at(n - 1).draw(66 + static_cast<float>(x) * 121, 66 + static_cast<float>(y) * 121, 107, 107);
 				}
 			}
 		}
