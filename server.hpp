@@ -469,7 +469,7 @@ private:
 						next_action = m_action;
 						policy = m_policy;
 					}
-					if (this == &m_server.get().m_actors.front()) {
+					if (isMainActor()) {
 						m_env.render();
 					}
 					auto&& [next_obs, current_reward, status] = m_env.step(next_action);
@@ -512,7 +512,7 @@ private:
 					}
 					observation = std::move(next_obs);
 				}
-				if (this == &m_server.get().m_actors.front()) {
+				if (isMainActor()) {
 					std::cout << "finish episode : " << t << " " << std::setprecision(5) << sum_of_reward << std::endl;
 				}
 			}
@@ -536,6 +536,11 @@ private:
 				m_predicting_flag = false;
 			}
 			m_event.notify_one();
+		}
+
+		bool isMainActor() const
+		{
+			return this == &m_server.get().m_actors.front();
 		}
 
 	private:
