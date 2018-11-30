@@ -27,6 +27,7 @@ template <class T,
             std::is_same<typename T::Observation, decltype(std::declval<T&>().reset())>,
             std::is_same<std::tuple<typename T::Observation, typename T::Reward, EnvState>, decltype(std::declval<T&>().step(std::declval<typename T::Action>()))>,
             std::is_same<void, decltype(std::declval<const T&>().render())>,
+            std::is_same<bool, decltype(std::declval<const T&>().isValidAction(std::declval<typename T::Action>()))>,
             std::is_same<void, decltype(T::makeBatch(std::declval<std::vector<typename T::Observation>&>().begin(), std::declval<std::vector<typename T::Observation>&>().end(), std::declval<typename T::ObsBatch&>()))>,
             std::is_same<void, decltype(T::makeBatch(std::declval<std::vector<std::reference_wrapper<std::add_const_t<typename T::Observation>>>&>().begin(), std::declval<std::vector<std::reference_wrapper<std::add_const_t<typename T::Observation>>>&>().end(), std::declval<typename T::ObsBatch&>()))>>,
         std::nullptr_t> = nullptr>

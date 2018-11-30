@@ -37,9 +37,7 @@ struct G2048TrainParams
 
 struct G2048AgentTraits : impala::FloatRewardTraits, impala::A3CLossTraits
 {
-	using Loss = impala::A3CLoss;
-	using ObsBatch = impala::G2048Env::ObsBatch;
-	using Reward = impala::G2048Env::Reward;
+	using Environment = impala::G2048Env;
 
 	static boost::python::object create(boost::python::object& main_ns)
 	{
@@ -54,13 +52,12 @@ struct G2048AgentTraits : impala::FloatRewardTraits, impala::A3CLossTraits
 		return main_ns["Impala"](model, optimizer_maker, impala::USE_CUDA);
 	}
 
-	template <class... SizeT, std::enable_if_t<std::conjunction_v<std::is_convertible<SizeT, std::size_t>...>, std::nullptr_t> = nullptr>
-	static boost::python::object convertObsBatch(ObsBatch& batch, SizeT... batch_sizes)
+	static boost::python::object convertObsBatch(Environment::ObsBatch& batch, std::size_t batch_size)
 	{
 		return boost::python::make_tuple(
-		    impala::G2048Env::RawObsTraits::convertToBatchedNdArray(std::get<0>(batch), batch_sizes...),
-		    impala::G2048Env::ConvObsTraits::convertToBatchedNdArray(std::get<1>(batch), batch_sizes...),
-		    impala::G2048Env::InvalidMaskTraits::convertToBatchedNdArray(std::get<2>(batch), batch_sizes...));
+		    Environment::RawObsTraits::convertToBatchedNdArray(std::get<0>(batch), batch_size),
+		    Environment::ConvObsTraits::convertToBatchedNdArray(std::get<1>(batch), batch_size),
+		    Environment::InvalidMaskTraits::convertToBatchedNdArray(std::get<2>(batch), batch_size));
 	}
 };
 

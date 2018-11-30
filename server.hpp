@@ -8,11 +8,13 @@
 #include <iostream>
 #include <mutex>
 #include <optional>
+#include <random>
 #include <thread>
 #include <variant>
 #include <vector>
 
 #include <boost/container/static_vector.hpp>
+#include <range/v3/algorithm/copy.hpp>
 #include <range/v3/numeric/accumulate.hpp>
 #include <range/v3/span.hpp>
 #include <range/v3/view/indices.hpp>
@@ -50,7 +52,7 @@ class Server
 {
 public:
 	static_assert(IsEnvironmentV<Environment>);
-	static_assert(IsAgentV<Agent>);
+	static_assert(IsAgentForGivenEnvironmentV<Agent, Environment>);
 
 	using Reward = typename Environment::Reward;
 	using Observation = typename Environment::Observation;
@@ -144,7 +146,7 @@ public:
 				});
 			}
 			for (auto&& predictor : prediction_batches) {
-				m_agent->predict(predictor.get().getStates(), predictor.get().getBufferForActions(), predictor.get().getBufferForPolicies(), [predictor]() {
+				m_agent->template predict<DiscreteActionTraits<Action>::num_actions>(predictor.get().getStates(), predictor.get().getBufferForPolicies(), [predictor]() {
 					predictor.get().processFinished();
 				});
 			}
@@ -195,8 +197,7 @@ private:
 	public:
 		explicit Predictor(Server& server) noexcept : m_server(server)
 		{
-			m_actions.reserve(MAX_PREDICTION_BATCH_SIZE);
-			m_policies.reserve(MAX_PREDICTION_BATCH_SIZE);
+			m_policy_lists.reserve(MAX_PREDICTION_BATCH_SIZE * DiscreteActionTraits<Action>::num_actions);
 			m_thread = std::thread{[this] {
 				run();
 			}};
@@ -237,8 +238,7 @@ private:
 				if (data_remain) {
 					m_server.get().m_predictor_event.notify_one();
 				}
-				m_actions.resize(actors.size(), boost::container::default_init);
-				m_policies.resize(actors.size(), boost::container::default_init);
+				m_policy_lists.resize(actors.size() * DiscreteActionTraits<Action>::num_actions, boost::container::default_init);
 				Environment::makeBatch(observations.begin(), observations.end(), m_states);
 				{
 					std::lock_guard lock{m_server.get().m_batches_lock};
@@ -253,8 +253,8 @@ private:
 						break;
 					}
 				}
-				for (auto&& [actor, action, policy] : ranges::view::zip(actors, m_actions, m_policies)) {
-					actor.get().setNextActionAndPolicy(DiscreteActionTraits<Action>::convertFromID(action), policy);
+				for (auto&& [i, actor] : ranges::view::zip(ranges::view::indices, actors)) {
+					actor.get().setNextPolicyList({m_policy_lists.data() + i * DiscreteActionTraits<Action>::num_actions, DiscreteActionTraits<Action>::num_actions});
 				}
 			}
 		}
@@ -264,13 +264,9 @@ private:
 			return m_states;
 		}
 
-		PinnedMemoryVector<std::int64_t>& getBufferForActions()
-		{
-			return m_actions;
-		}
 		PinnedMemoryVector<float>& getBufferForPolicies()
 		{
-			return m_policies;
+			return m_policy_lists;
 		}
 
 		void exit()
@@ -299,8 +295,7 @@ private:
 		bool m_processing_flag = false;
 		bool m_exit_flag = false;
 		ObsBatch m_states;
-		PinnedMemoryVector<std::int64_t> m_actions;
-		PinnedMemoryVector<float> m_policies;
+		PinnedMemoryVector<float> m_policy_lists;
 	};
 
 	class Trainer
@@ -431,6 +426,7 @@ private:
 			m_thread = std::thread{[this] {
 				run();
 			}};
+			m_action_sample_random_engine.seed(std::random_device{}());
 		}
 		~Actor()
 		{
@@ -458,16 +454,22 @@ private:
 							m_server.get().m_predictor_event.notify_one();
 						}
 					}
-					Action next_action;
-					float policy;
 					{
 						std::unique_lock lock{m_mutex};
 						m_event.wait(lock, [this] { return !m_predicting_flag || m_exit_flag; });
 						if (m_exit_flag) {
 							return;
 						}
-						next_action = m_action;
-						policy = m_policy;
+					}
+					Action next_action;
+					float policy;
+					while (true) {
+						auto action_id = std::discrete_distribution<std::int64_t>(m_policy_list.begin(), m_policy_list.end())(m_action_sample_random_engine);
+						next_action = DiscreteActionTraits<Action>::convertFromID(action_id);
+						if (m_env.isValidAction(next_action)) {
+							policy = m_policy_list[action_id];
+							break;
+						}
 					}
 					if (isMainActor()) {
 						m_env.render();
@@ -527,12 +529,11 @@ private:
 			m_event.notify_one();
 		}
 
-		void setNextActionAndPolicy(Action action, float policy)
+		void setNextPolicyList(ranges::span<float> policy_list)
 		{
 			{
 				std::lock_guard lock{m_mutex};
-				m_action = action;
-				m_policy = policy;
+				ranges::copy(policy_list, m_policy_list.begin());
 				m_predicting_flag = false;
 			}
 			m_event.notify_one();
@@ -548,11 +549,11 @@ private:
 		std::thread m_thread;
 		std::mutex m_mutex;
 		std::condition_variable m_event;
-		Action m_action;
-		float m_policy;
+		std::array<float, DiscreteActionTraits<Action>::num_actions> m_policy_list;
 		bool m_predicting_flag = false;
 		bool m_exit_flag = false;
 		Environment m_env;
+		std::mt19937 m_action_sample_random_engine;
 	};
 
 	std::unique_ptr<Agent> m_agent;

@@ -49,6 +49,8 @@ public:
 		InvalidMaskTraits::makeBufferForBatch(first, last, std::get<2>(output), writeInvalidMaskData);
 	}
 
+	bool isValidAction(Action action) const;
+
 private:
 	static void writeRawData(const Observation& obs, RawObsTraits::TensorRefType& dest);
 	static void writeConvData(const Observation& obs, ConvObsTraits::TensorRefType& dest);

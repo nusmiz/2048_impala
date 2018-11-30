@@ -172,7 +172,26 @@ std::tuple<G2048Env::Observation, G2048Env::Reward, EnvState> G2048Env::step(con
 	if (isGameOver()) {
 		return std::make_tuple(m_state, -10.0f, EnvState::FINISHED);
 	}
-	return std::make_tuple(m_state, 1.0f, EnvState::RUNNING);
+	return std::make_tuple(m_state, 0.1f, EnvState::RUNNING);
+}
+
+bool G2048Env::isValidAction(Action action) const
+{
+	if (isGameOver()) {
+		std::cerr << "2048 error: there are some logic errors!!" << std::endl;
+		std::terminate();
+	}
+	auto temp = m_state;
+	if (action == FourDirections::LEFT) {
+		moveLeft<0>(temp);
+	} else if (action == FourDirections::RIGHT) {
+		moveLeft<2>(temp);
+	} else if (action == FourDirections::UP) {
+		moveLeft<3>(temp);
+	} else if (action == FourDirections::DOWN) {
+		moveLeft<1>(temp);
+	}
+	return (temp != m_state);
 }
 
 void G2048Env::writeRawData(const Observation& obs, RawObsTraits::TensorRefType& dest)

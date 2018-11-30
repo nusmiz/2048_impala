@@ -12,6 +12,7 @@
 #include <range/v3/view/zip.hpp>
 
 #include "agent.hpp"
+#include "environment.hpp"
 #include "loss.hpp"
 #include "python_util.hpp"
 
@@ -25,10 +26,10 @@ template <class T,
     std::enable_if_t<
         std::conjunction_v<
             IsLossType<typename T::Loss>,
+            IsEnvironment<typename T::Environment>,
             std::is_same<boost::python::object, decltype(T::create(std::declval<boost::python::object&>()))>,
-            std::is_same<boost::python::object, decltype(T::convertObsBatch(std::declval<std::add_lvalue_reference_t<typename T::ObsBatch>>(), std::declval<std::size_t>()))>,
-            std::is_same<boost::python::object, decltype(T::convertObsBatch(std::declval<std::add_lvalue_reference_t<typename T::ObsBatch>>(), std::declval<std::size_t>(), std::declval<std::size_t>()))>,
-            std::is_same<boost::python::object, decltype(T::convertRewardBatch(std::declval<ranges::span<typename T::Reward>>(), std::declval<std::size_t>(), std::declval<std::size_t>()))>,
+            std::is_same<boost::python::object, decltype(T::convertObsBatch(std::declval<std::add_lvalue_reference_t<typename T::Environment::ObsBatch>>(), std::declval<std::size_t>()))>,
+            std::is_same<boost::python::object, decltype(T::convertRewardBatch(std::declval<ranges::span<typename T::Environment::Reward>>(), std::declval<std::size_t>(), std::declval<std::size_t>()))>,
             std::is_same<typename T::Loss, decltype(T::convertToLoss(std::declval<boost::python::object&&>()))>>,
         std::nullptr_t> = nullptr>
 inline constexpr std::true_type isPythonAgentTraitsHelper(const volatile T*);
@@ -55,9 +56,8 @@ class PythonAgent
 public:
 	static_assert(IsPythonAgentTraitsV<PythonAgentTraits>);
 
+	using Environment = typename PythonAgentTraits::Environment;
 	using Loss = typename PythonAgentTraits::Loss;
-	using Reward = typename PythonAgentTraits::Reward;
-	using ObsBatch = typename PythonAgentTraits::ObsBatch;
 
 	PythonAgent()
 	{
@@ -75,19 +75,18 @@ public:
 		}
 	}
 
-	template <class Callback, std::enable_if_t<std::is_invocable_v<Callback>, std::nullptr_t> = nullptr>
-	void predict(ObsBatch& states, ranges::span<std::int64_t> action_id_buffer, ranges::span<float> policy_buffer, Callback&& callback)
+	template <std::size_t NUM_ACTIONS, class Callback, std::enable_if_t<std::is_invocable_v<Callback>, std::nullptr_t> = nullptr>
+	void predict(typename Environment::ObsBatch& states, ranges::span<float> policy_buffer, Callback&& callback)
 	{
 		auto prev_callback = std::move(m_callback);
 		m_callback = [callback = std::move(callback)](boost::python::object&&) {
 			callback();
 		};
 		try {
-			const auto batch_size = static_cast<std::size_t>(action_id_buffer.size());
+			const auto batch_size = static_cast<std::size_t>(policy_buffer.size()) / NUM_ACTIONS;
 			auto states_pyobj = PythonAgentTraits::convertObsBatch(states, batch_size);
-			auto action_id_buffer_ndarray = NdArrayTraits<std::int64_t, 1>::convertToBatchedNdArray(action_id_buffer, batch_size);
-			auto policy_buffer_ndarray = NdArrayTraits<float, 1>::convertToBatchedNdArray(policy_buffer, batch_size);
-			auto result = m_predict_func(states_pyobj, action_id_buffer_ndarray, policy_buffer_ndarray);
+			auto policy_buffer_ndarray = NdArrayTraits<float, NUM_ACTIONS>::convertToBatchedNdArray(policy_buffer, batch_size);
+			auto result = m_predict_func(states_pyobj, policy_buffer_ndarray);
 			if (prev_callback) {
 				prev_callback(std::move(result));
 			}
@@ -97,7 +96,7 @@ public:
 		}
 	}
 	template <class Callback, std::enable_if_t<std::is_invocable_v<Callback, Loss>, std::nullptr_t> = nullptr>
-	void train(ObsBatch& states, ranges::span<std::int64_t> action_ids, ranges::span<Reward> rewards, ranges::span<float> behaviour_policies, ranges::span<float> discounts, ranges::span<float> loss_coefs, ranges::span<std::int64_t> data_sizes, Callback&& callback)
+	void train(typename Environment::ObsBatch& states, ranges::span<std::int64_t> action_ids, ranges::span<typename Environment::Reward> rewards, ranges::span<float> behaviour_policies, ranges::span<float> discounts, ranges::span<float> loss_coefs, ranges::span<std::int64_t> data_sizes, Callback&& callback)
 	{
 		auto prev_callback = std::move(m_callback);
 		m_callback = [callback = std::move(callback)](boost::python::object&& result) {
@@ -107,7 +106,7 @@ public:
 			namespace np = boost::python::numpy;
 			const auto t_max = static_cast<std::size_t>(data_sizes.size());
 			const auto batch_size = static_cast<std::size_t>(action_ids.size()) / t_max;
-			auto states_pyobj = PythonAgentTraits::convertObsBatch(states, t_max + 1, batch_size);
+			auto states_pyobj = PythonAgentTraits::convertObsBatch(states, (t_max + 1) * batch_size);
 			auto action_ids_ndarray = NdArrayTraits<std::int64_t, 1>::convertToBatchedNdArray(action_ids, t_max, batch_size);
 			auto rewards_pyobj = PythonAgentTraits::convertRewardBatch(rewards, t_max, batch_size);
 			auto bp_ndarray = NdArrayTraits<float, 1>::convertToBatchedNdArray(behaviour_policies, t_max, batch_size);
@@ -189,12 +188,10 @@ struct A3CLossTraits
 
 struct FloatRewardTraits
 {
-	using Reward = float;
-
 	template <class... SizeT, std::enable_if_t<std::conjunction_v<std::is_convertible<SizeT, std::size_t>...>, std::nullptr_t> = nullptr>
-	static boost::python::object convertRewardBatch(ranges::span<Reward> rewards, SizeT... batch_sizes)
+	static boost::python::object convertRewardBatch(ranges::span<float> rewards, SizeT... batch_sizes)
 	{
-		return impala::NdArrayTraits<Reward, 1>::convertToBatchedNdArray(rewards, batch_sizes...);
+		return impala::NdArrayTraits<float, 1>::convertToBatchedNdArray(rewards, batch_sizes...);
 	}
 };
 

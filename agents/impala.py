@@ -1,6 +1,4 @@
 import torch
-import torch.nn.functional as F
-import math
 from pathlib import Path
 
 
@@ -21,14 +19,11 @@ class Impala:
         self.clip_c_threshold = torch.Tensor([1.0]).to(self.device)
         self.prev_operation = None
 
-    def predict_impl(self, observations, action_ids_out, policies_out):
+    def predict_impl(self, observations, policies_out):
         self.model.eval()
         with torch.no_grad():
             probs = self.model.probs(observations)
-            actions = probs.multinomial(1)
-            policies = probs.gather(1, actions)
-            torch.from_numpy(action_ids_out).copy_(actions)
-            torch.from_numpy(policies_out).copy_(policies)
+            torch.from_numpy(policies_out).copy_(probs)
 
     def calc_vs_and_pg_advantages(self, probs, values, actions, rewards, behaviour_policies,
                                   discounts):
@@ -84,7 +79,7 @@ class Impala:
         self.optimizer.step()
         return v_loss.item(), pi_loss.item(), entropy_loss.item()
 
-    def predict(self, observations_in, action_ids_out, policies_out):
+    def predict(self, observations_in, policies_out):
         if self.use_cuda:
             self.transfer_stream.synchronize()
             with torch.cuda.stream(self.transfer_stream):
@@ -93,7 +88,7 @@ class Impala:
             observations = self.model.convert_obs_to_tensor(observations_in, self.device)
 
         def predict_operation():
-            return self.predict_impl(observations, action_ids_out, policies_out)
+            return self.predict_impl(observations, policies_out)
 
         operation = self.prev_operation
         self.prev_operation = predict_operation
