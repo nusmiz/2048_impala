@@ -140,7 +140,7 @@ public:
 					}
 					if constexpr (SAVE_INTERVAL_STEPS.has_value()) {
 						if (trained_steps / SAVE_INTERVAL_STEPS.value() != prev_trained_steps / SAVE_INTERVAL_STEPS.value()) {
-							m_agent->save(static_cast<int>(trained_steps));
+							m_agent->save(static_cast<std::int64_t>(trained_steps));
 						}
 					}
 				});
