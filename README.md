@@ -1,4 +1,4 @@
-# Solve sokoban game with IMPALA
+# Solve 2048 game with IMPALA
 
 ## Requirements
 
