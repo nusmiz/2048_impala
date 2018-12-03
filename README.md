@@ -12,6 +12,7 @@
 
     $ git clone https://github.com/nusmiz/sokoban_impala
     $ cd sokoban_impala
+    $ git submodule update --init
     $ mkdir build
     $ cd build
     $ cmake .. -DCMAKE_BUILD_TYPE=Release
