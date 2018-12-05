@@ -2,11 +2,11 @@
 
 #include <algorithm>
 #include <cassert>
-#include <experimental/filesystem>
 #include <string>
 #include <utility>
 
 #include <boost/container/vector.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/python.hpp>
 #include <boost/python/numpy.hpp>
 #include <range/v3/span.hpp>
@@ -34,10 +34,9 @@ public:
 
 inline boost::python::object makePythonMainNameSpace()
 {
-	namespace fs = std::experimental::filesystem;
 	auto main_ns = boost::python::import("__main__").attr("__dict__");
 	boost::python::exec("import sys", main_ns);
-	boost::python::exec(("sys.path.append(\"" + fs::canonical(".").string() + "\")").data(), main_ns);
+	boost::python::exec(("sys.path.append(\"" + boost::filesystem::canonical(".").string() + "\")").data(), main_ns);
 	return main_ns;
 }
 

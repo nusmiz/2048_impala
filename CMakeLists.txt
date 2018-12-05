@@ -7,7 +7,7 @@ project(impala CXX)
 
 find_package(PythonInterp 3 REQUIRED)
 find_package(PythonLibs 3 REQUIRED)
-find_package(Boost COMPONENTS python3 numpy3 system regex REQUIRED)
+find_package(Boost COMPONENTS python3 numpy3 filesystem system regex REQUIRED)
 
 if(${USE_CUDA})
     find_package(CUDA REQUIRED)
@@ -42,7 +42,7 @@ endif()
 target_include_directories(train2048 PRIVATE .)
 target_include_directories(train2048 SYSTEM PRIVATE ./range-v3/include)
 target_include_directories(train2048 SYSTEM PRIVATE ${Boost_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS})
-target_link_libraries(train2048 ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} Threads::Threads stdc++fs)
+target_link_libraries(train2048 ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} Threads::Threads)
 
 if(${USE_CUDA})
     target_compile_definitions(train2048 PRIVATE IMPALA_USE_CUDA)
